@@ -282,6 +282,10 @@ def get_rotate_crop_image(img, points):
         max(
             np.linalg.norm(points[0] - points[3]),
             np.linalg.norm(points[1] - points[2])))
+    # 当侧视大角度导致车牌横向投影被过度压缩时，恢复单层车牌的标准物理长宽比
+    ratio = img_crop_width / max(1, img_crop_height)
+    if ratio < 3.14:
+        img_crop_width = int(img_crop_height * 3.14)
     pts_std = np.float32([[0, 0], [img_crop_width, 0],
                           [img_crop_width, img_crop_height],
                           [0, img_crop_height]])
