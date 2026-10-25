@@ -26,7 +26,7 @@ font_ch = ImageFont.truetype("../resource/font/platech.ttf", 20, 0)
 # 实例化识别对象
 catcher = lpr3.LicensePlateCatcher(detect_level=lpr3.DETECT_LEVEL_HIGH)
 # 读取图片
-image = cv2.imread("/Users/tunm/Downloads/tlj.webp")
+image = cv2.imread("../resource/images/test_img.jpg")
 
 # 执行识别算法
 results = catcher(image)
@@ -36,5 +36,11 @@ for code, confidence, type_idx, box in results:
     image = draw_plate_on_image(image, box, text, font=font_ch)
 
 # 显示检测结果
-cv2.imshow("w", image)
+scale_percent = 0.5
+display_width = int(image.shape[1] * scale_percent)
+display_height = int(image.shape[0] * scale_percent)
+display_image = cv2.resize(image, (display_width, display_height))
+
+cv2.imshow("w", display_image)
 cv2.waitKey(0)
+cv2.destroyAllWindows()
