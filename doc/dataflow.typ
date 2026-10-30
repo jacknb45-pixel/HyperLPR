@@ -17,7 +17,7 @@
 }
 
 #align(center)[
-  #text(size: 13pt, weight: "bold")[图 2　HyperLPR 推理流水线数据流与 P2 黄金切分点]
+  #text(size: 13pt, weight: "bold")[HyperLPR 推理流水线数据流与 P2 黄金切分点]
 ]
 
 #align(center)[
@@ -28,9 +28,9 @@
     band(0, 6.9, 16.6, 2.5, "端侧 Mobile　·　P0 全本地执行　/　P2 到此为止",
       rgb("#e6f1fb"), rgb("#185fa5"), rgb("#0c447c"))
     node(0.25, 7.35, 2.5, "输入原图", "数百 KB ~ 2 MB", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
-    node(3.15, 7.35, 3.0, "Stage 1 目标定位", "19.2 ms · 占 48%", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
+    node(3.15, 7.35, 3.0, "Stage 1 目标定位", "18.5 ms · 占 20%", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
     node(6.55, 7.35, 2.0, "四角点", "8 floats", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
-    node(8.95, 7.35, 2.7, "Stage 2 几何对齐", "0.9 ms · 占 2%", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
+    node(8.95, 7.35, 2.7, "Stage 2 几何对齐", "0.7 ms · 占 1%", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
     node(12.05, 7.35, 3.1, "车牌切片", "48×160 · 9.75 KB", rgb("#faeeda"), rgb("#ba7517"), rgb("#854f0b"))
 
     line((2.75, 8.05), (3.15, 8.05), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
@@ -49,8 +49,8 @@
     band(0, 2.35, 15.2, 2.5, "云端 Server　·　P1 / P2 / P3 在此执行",
       rgb("#eeedfe"), rgb("#534ab7"), rgb("#3c3489"))
     node(0.25, 2.8, 3.1, "接收切片", "JPEG 字节流", rgb("#ffffff"), rgb("#afa9ec"), rgb("#3c3489"))
-    node(3.75, 2.8, 3.2, "Stage 3 字符识别", "CRNN + CTC", rgb("#ffffff"), rgb("#afa9ec"), rgb("#3c3489"))
-    node(7.35, 2.8, 3.0, "Stage 4 属性分类", "单/双层 · 颜色", rgb("#ffffff"), rgb("#afa9ec"), rgb("#3c3489"))
+    node(3.75, 2.8, 3.2, "Stage 3 字符识别", "71.1 ms · 占 77%", rgb("#ffffff"), rgb("#afa9ec"), rgb("#3c3489"))
+    node(7.35, 2.8, 3.0, "Stage 4 属性分类", "1.7 ms · 条件触发", rgb("#ffffff"), rgb("#afa9ec"), rgb("#3c3489"))
     node(10.75, 2.8, 4.2, "车牌号 + 类型 + 置信度", "JSON 回传", rgb("#ffffff"), rgb("#afa9ec"), rgb("#3c3489"))
 
     line((3.35, 3.5), (3.75, 3.5), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
@@ -58,7 +58,8 @@
     line((10.35, 3.5), (10.75, 3.5), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
 
     content((8.3, 1.5), text(size: 8.5pt, fill: rgb("#444441"))[
-      端侧仅用约 20 ms 便将 2 MB 原图压缩为不足 10 KB 的中间张量，这就是动态计算划分的收益来源
+      端侧仅用约 19 ms 便把数百 KB 原图压成不足 10 KB 的中间张量，
+      占端侧 77% 算力的识别阶段随之可整体卸载——这是动态计算划分的收益来源
     ])
   })
 ]
