@@ -1,0 +1,142 @@
+# Auto detect text files and perform LF normalization on checkin
+* text=auto
+
+# =========================================================================
+# Source Code (with semantic diff drivers)
+# =========================================================================
+
+# C / C++
+*.c             text diff=cpp
+*.cc            text diff=cpp
+*.cpp           text diff=cpp
+*.cxx           text diff=cpp
+*.h             text diff=cpp
+*.hh            text diff=cpp
+*.hpp           text diff=cpp
+*.hxx           text diff=cpp
+*.inl           text diff=cpp
+*.inc           text diff=cpp
+
+# Python
+*.py            text diff=python
+*.pyi           text diff=python
+*.pyw           text diff=python
+
+# Java / Android
+*.java          text diff=java
+*.gradle        text
+*.properties    text
+*.pro           text
+*.aidl          text
+
+# Objective-C / Swift / iOS
+*.m             text diff=objc
+*.mm            text diff=objc
+*.swift         text
+*.plist         text
+*.pbxproj       text -diff merge=union
+*.xcworkspacedata text
+*.xcuserstate   binary
+
+# Markup, Data & Config
+*.md            text
+*.markdown      text
+*.txt           text
+*.typ           text
+*.json          text
+*.xml           text
+*.yml           text
+*.yaml          text
+*.toml          text
+*.ini           text
+*.cfg           text
+*.conf          text
+*.cmake         text
+CMakeLists.txt  text
+LICENSE         text
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+
+# =========================================================================
+# Platform-Specific Scripts & Line Endings
+# =========================================================================
+
+# Shell scripts (always enforce LF line endings)
+*.sh            text eol=lf
+*.bash          text eol=lf
+gradlew         text eol=lf
+Dockerfile      text eol=lf
+
+# Windows scripts (always enforce CRLF line endings)
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# =========================================================================
+# Deep Learning Models & Weights (strictly binary to prevent corruption)
+# =========================================================================
+*.mnn           binary
+*.onnx          binary
+*.param         binary
+*.bin           binary
+*.tflite        binary
+*.pb            binary
+*.weights       binary
+*.pt            binary
+*.pth           binary
+*.engine        binary
+*.rknn          binary
+*.caffemodel    binary
+*.h5            binary
+*.pkl           binary
+*.pickle        binary
+
+# =========================================================================
+# Media, Images & Fonts
+# =========================================================================
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.bmp           binary
+*.ico           binary
+*.tiff          binary
+*.tif           binary
+*.svg           text
+
+*.ttf           binary
+*.otf           binary
+*.woff          binary
+*.woff2         binary
+*.eot           binary
+
+# =========================================================================
+# Archives, Compiled Artifacts & Libraries
+# =========================================================================
+*.jar           binary
+*.apk           binary
+*.aab           binary
+*.zip           binary
+*.tar           binary
+*.gz            binary
+*.tar.gz        binary
+*.tgz           binary
+*.7z            binary
+*.rar           binary
+*.so            binary
+*.dylib         binary
+*.dll           binary
+*.lib           binary
+*.a             binary
+*.exe           binary
+*.whl           binary
+*.pyc           binary
+*.pyo           binary
+*.pyd           binary
+
+# =========================================================================
+# GitHub Linguist Overrides
+# =========================================================================
+cpp/test/catch2/**      linguist-vendored
+doc/**                  linguist-documentation
