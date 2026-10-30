@@ -64,7 +64,7 @@
 
     #v(1.2cm)
     #text(size: 9pt, fill: rgb("#777777"))[
-      本报告中所有性能数据均由本团队在统一环境下实测获得，复现脚本与原始 CSV 随源码仓库一并提交
+      本报告中所有性能数据均由本团队在统一环境下实测获得
     ]
   ]
 ]
@@ -78,12 +78,6 @@
 
 本课题面向移动云计算（Mobile Cloud Computing, MCC）环境，以开源中文车牌识别框架 HyperLPR 为载体，研究*计算划分*（Computation Partitioning）问题：将应用的各计算模块在移动终端与云端之间进行分配，并通过系统实验刻画"划分方式—网络条件—端到端性能"之间的关系。我们首先对 HyperLPR 的源码进行模块级剖析，将其四阶段推理流水线（目标定位 → 几何对齐 → 字符识别 → 属性分类）解耦为四个可独立调度的算子，并在统一环境下完成端侧基线测量（四阶段合计约 92 ms，峰值内存 142.6 MB，检测与对齐仅占端侧算力约 21%）。在此基础上设计了 P0（全本地）、P1（全云端）、P2（端侧检测+对齐、云端识别+分类）、P3（端侧仅检测）四种静态划分策略，配合五档网络剖面（5G／WiFi／4G／3G 弱网／POOR）搭建了可插拔流水线与全矩阵评测框架。初步实验表明：端侧仅需约 19 ms 即可将上传载荷从数百 KB 压缩至 9.75 KB（削减 97.5%），弱网下 P2 较 P1 端到端加速最高达 21 倍；但 5G 下 P1 反而略优——*不存在全局最优的静态切分点*，这为后续运行时动态自适应划分（Part C）提供了量化依据。
 
-#v(0.6em)
-#block(width: 100%, fill: rgb("#f7f7f7"), inset: 10pt, radius: 4pt)[
-  #set text(size: 9.5pt)
-  #set par(first-line-indent: 0em, justify: true)
-  #text(weight: "bold")[Abstract]　This project studies computation partitioning in Mobile Cloud Computing, taking HyperLPR, an open-source Chinese license-plate recognition framework, as the target application. We decouple its four-stage inference pipeline (detection → alignment → recognition → classification) into independently schedulable operators, profile an on-device baseline (≈92 ms per frame, 142.6 MB peak RSS), and design four static partitioning strategies (P0–P3) evaluated over five network profiles. Experiments show that a ~19 ms on-device pre-stage compresses the upload payload from hundreds of KB to 9.75 KB (−97.5%), yielding up to 21× end-to-end speedup over full offloading under poor connectivity, whereas full offloading wins under 5G — no static cut point is globally optimal, which motivates runtime dynamic partitioning (Part C).
-]
 
 // ============================== 1 引言 ==============================
 = 引言
