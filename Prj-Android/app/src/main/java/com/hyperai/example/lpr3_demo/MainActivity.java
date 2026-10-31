@@ -144,32 +144,53 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        Bitmap bitmap = null;
-        String showText = "";
+        String imagePath = null;
         // 图片选择结果回调
         if (requestCode == REQUEST_LIST_CODE && resultCode == RESULT_OK && data != null) {
             List<String> pathList = data.getStringArrayListExtra("result");
-            Log.i(TAG, pathList.get(0));
-            bitmap = BitmapFactory.decodeFile(pathList.get(0));
-        }  else if (requestCode == REQUEST_CAMERA_CODE && resultCode == RESULT_OK && data != null) {
-            String path = data.getStringExtra("result");
-            Log.i(TAG, path);
-            bitmap = BitmapFactory.decodeFile(path);
+            imagePath = pathList.get(0);
+            Log.i(TAG, imagePath);
+        } else if (requestCode == REQUEST_CAMERA_CODE && resultCode == RESULT_OK && data != null) {
+            imagePath = data.getStringExtra("result");
+            Log.i(TAG, imagePath);
         }
-        if (bitmap != null) {
 
-            imageView.setImageBitmap(bitmap);
-            // 调用车牌识别
-            Plate[] plates =  HyperLPR3.getInstance().plateRecognition(bitmap, HyperLPR3.CAMERA_ROTATION_0, HyperLPR3.STREAM_BGRA);
-            for (Plate plate: plates) {
-                String type = "未知车牌";
-                if (plate.getType() != HyperLPR3.PLATE_TYPE_UNKNOWN) {
-                    type = HyperLPR3.PLATE_TYPE_MAPS[plate.getType()];
+        if (imagePath != null) {
+            // 1. 测量图片解码耗时 (从磁盘读取图片并解码为 Bitmap)
+            long decodeStart = System.currentTimeMillis();
+            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            long decodeCost = System.currentTimeMillis() - decodeStart;
+
+            if (bitmap != null) {
+                imageView.setImageBitmap(bitmap);
+
+                // 2. 测量纯算法推理耗时 (Detect + Align + Rec + Cls 四阶段总耗时)
+                long inferStart = System.currentTimeMillis();
+                Plate[] plates = HyperLPR3.getInstance().plateRecognition(bitmap, HyperLPR3.CAMERA_ROTATION_0, HyperLPR3.STREAM_BGRA);
+                long inferCost = System.currentTimeMillis() - inferStart;
+
+                // 3. 构建结果展示
+                StringBuilder sb = new StringBuilder();
+                sb.append("【性能基准测试结果】\n");
+                sb.append("▸ 纯算法推理耗时: ").append(inferCost).append(" ms\n");
+                sb.append("▸ 图片解码耗时:   ").append(decodeCost).append(" ms\n");
+                sb.append("▸ 端到端本地总计: ").append(decodeCost + inferCost).append(" ms\n");
+                sb.append("--------------------------------\n");
+
+                if (plates != null && plates.length > 0) {
+                    for (Plate plate : plates) {
+                        String type = "未知车牌";
+                        if (plate.getType() != HyperLPR3.PLATE_TYPE_UNKNOWN) {
+                            type = HyperLPR3.PLATE_TYPE_MAPS[plate.getType()];
+                        }
+                        sb.append("[").append(type).append("] ").append(plate.getCode()).append("\n");
+                    }
+                } else {
+                    sb.append("未识别到车牌\n");
                 }
-                String pStr = "[" + type + "]" + plate.getCode() + "\n";
-                showText += pStr;
-                mResult.setText(showText);
 
+                mResult.setText(sb.toString());
+                Log.i(TAG, sb.toString());
             }
         }
     }

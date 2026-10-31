@@ -125,7 +125,11 @@ public class CameraPreviews extends SurfaceView implements SurfaceHolder.Callbac
         synchronized (lock){
             // 处理data
             Camera.Size previewSize = camera.getParameters().getPreviewSize();
+            long t0 = System.currentTimeMillis();
             Plate[] plates = HyperLPR3.getInstance().plateRecognition(data, previewSize.height, previewSize.width, HyperLPR3.CAMERA_ROTATION_270, HyperLPR3.STREAM_YUV_NV21);
+            long inferCost = System.currentTimeMillis() - t0;
+            Log.i(TAG, "实时视频帧识别耗时: " + inferCost + " ms, 帧率约为: " + (inferCost > 0 ? (1000 / inferCost) : 0) + " FPS");
+
             for (Plate plate : plates) {
                 Log.i(TAG,  "" + plate.toString());
             }

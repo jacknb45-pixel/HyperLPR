@@ -3,6 +3,7 @@ plugins {
 }
 
 android {
+    namespace 'com.hyperai.example.lpr3_demo'
     compileSdk 31
 
     defaultConfig {
@@ -13,6 +14,10 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 
     buildTypes {
