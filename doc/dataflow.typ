@@ -59,9 +59,13 @@
     line((6.95, 3.0), (7.35, 3.0), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
     line((10.35, 3.0), (10.75, 3.0), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
 
-    content((8.3, 1.0), text(size: 8.5pt, fill: rgb("#444441"))[
+    content((8.3, 1.35), text(size: 8.5pt, fill: rgb("#444441"))[
       识别阶段的输入仅是这张 9.75 KB 切片而非原图：把它移出端侧既不增加传输量，
       又可省下端侧最贵的算力——这是后续划分研究的关键观察
+    ])
+    content((8.3, 0.62), text(size: 7pt, fill: rgb("#77776e"))[
+      注：节点耗时为桌面代理平台（32 核 x86 + ONNXRuntime）逐阶段实测，用于给出各阶段占比；
+      Android 真机（8 核 ARM + MNN）同图四阶段合计 149.98 ms
     ])
   })
 ]
