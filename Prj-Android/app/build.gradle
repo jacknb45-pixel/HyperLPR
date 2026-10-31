@@ -7,11 +7,13 @@ android {
     compileSdk 31
 
     defaultConfig {
-        applicationId "com.hyperai.example.lpr3_demo"
+        // 与官方 demo（...lpr3_demo）区分：群内 APK 用官方 keystore 签名，本 APK 为
+        // debug 签名，包名相同会因签名不一致导致安装失败。改包名后两者可共存。
+        applicationId "com.hyperai.example.lpr3_bench"
         minSdk 21
         targetSdk 31
         versionCode 1
-        versionName "1.0"
+        versionName "1.0-bench"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
