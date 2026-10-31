@@ -17,7 +17,7 @@
 }
 
 #align(center)[
-  #text(size: 13pt, weight: "bold")[HyperLPR 推理流水线数据流与 P2 黄金切分点]
+  #text(size: 13pt, weight: "bold")[HyperLPR 推理流水线数据流与候选切分点]
 ]
 
 #align(center)[
@@ -25,7 +25,7 @@
     import draw: *
 
     // 端侧
-    band(0, 6.9, 16.6, 2.5, "端侧 Mobile　·　P0 全本地执行　/　P2 到此为止",
+    band(0, 6.9, 16.6, 2.5, "端侧 Mobile　·　P0 全本地执行　/　候选切分到此为止",
       rgb("#e6f1fb"), rgb("#185fa5"), rgb("#0c447c"))
     node(0.25, 7.35, 2.5, "输入原图", "数百 KB ~ 2 MB", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
     node(3.15, 7.35, 3.0, "Stage 1 目标定位", "18.5 ms · 占 20%", rgb("#ffffff"), rgb("#85b7eb"), rgb("#0c447c"))
@@ -42,7 +42,7 @@
     line((13.6, 7.35), (13.6, 5.95), (1.8, 5.95), (1.8, 2.75),
       mark: (end: ">", size: 0.16pt), stroke: (paint: rgb("#ba7517"), thickness: 0.9pt, dash: "dashed"))
     content((7.7, 6.2), text(size: 8pt, fill: rgb("#854f0b"))[
-      P2 切分点：HTTP POST 仅上传 9.75 KB 切片（相比 P1 整图上传削减 97.5% 载荷）
+      候选切分点：此后的模块可移至云端，仅上传 9.75 KB 切片（相比整图上传削减 97.5% 载荷）
     ])
 
     // 云端

@@ -118,6 +118,14 @@ def profile_stages(image_path: str, rounds: int = 20, csv_out: str = None):
                 if rss_now > rss_peak:
                     rss_peak = rss_now
 
+    if len(align_times) == 0:
+        # 空检测防护：未检出车牌时 Align/Rec/Cls 均无样本，均值将为 NaN
+        print("\n[错误] 输入图像未检出车牌，无法对 Align/Rec/Cls 阶段计时。")
+        if det_times:
+            print(f"       检测阶段仍完成 {rounds} 轮（均值 {np.mean(det_times):.2f} ms），"
+                  f"但基线评测需要含车牌的图像，请更换输入后重跑。")
+        sys.exit(1)
+
     avg_det = np.mean(det_times)
     std_det = np.std(det_times)
     avg_align = np.mean(align_times)
@@ -147,13 +155,18 @@ def profile_stages(image_path: str, rounds: int = 20, csv_out: str = None):
     if _HAS_PSUTIL:
         cpu_t1 = time.process_time()
         wall_t1 = time.perf_counter()
-        cpu_util = (cpu_t1 - cpu_t0) / (wall_t1 - wall_t0) * 100.0 / cpu_count
+        # 口径说明：process_time 差值即进程实际消耗的 CPU 时间，
+        # 除以墙钟时间得到"等效核心数"（1.0 = 恰好跑满一个核）。
+        # 不再除以 cpu_count 换算整机百分比，避免与"单核跑满"表述冲突。
+        cores_used = (cpu_t1 - cpu_t0) / (wall_t1 - wall_t0)
+        cpu_util_all = cores_used / cpu_count * 100.0
         rss_peak_mb = rss_peak / (1024 * 1024)
         print("\n【系统资源占用 (Resource Usage)】")
         print(f"峰值常驻内存 (RSS):        {rss_peak_mb:7.1f} MB")
-        print(f"进程 CPU 占用率:           {cpu_util:7.1f} % (占 {cpu_count} 核总 CPU)")
+        print(f"CPU 占用 (等效核心数):     {cores_used:7.2f} Cores"
+              f"  (本机 {cpu_count} 核，折合整机 {cpu_util_all:.1f} %)")
     else:
-        cpu_util = 0.0
+        cores_used = 0.0
         rss_peak_mb = 0.0
         print("\n【系统资源占用 (Resource Usage)】")
         print("未采集：缺少 psutil，执行 pip install psutil 后重跑可启用该项")
@@ -164,7 +177,7 @@ def profile_stages(image_path: str, rounds: int = 20, csv_out: str = None):
     if csv_out:
         fields = ["image", "resolution", "rounds", "det_ms", "det_std", "align_ms", "align_std",
                   "rec_ms", "rec_std", "cls_ms", "cls_std", "total_ms",
-                  "raw_kb", "patch_kb", "reduction_pct", "rss_peak_mb", "cpu_util_pct"]
+                  "raw_kb", "patch_kb", "reduction_pct", "rss_peak_mb", "cpu_cores"]
         row = {
             "image": os.path.basename(image_path),
             "resolution": f"{img_w}x{img_h}",
@@ -178,7 +191,7 @@ def profile_stages(image_path: str, rounds: int = 20, csv_out: str = None):
             "patch_kb": round(avg_patch_size / 1024, 2),
             "reduction_pct": round(reduction, 2),
             "rss_peak_mb": round(rss_peak_mb, 1),
-            "cpu_util_pct": round(cpu_util, 1),
+            "cpu_cores": round(cores_used, 2),
         }
         dirpart = os.path.dirname(os.path.abspath(csv_out))
         if dirpart:
