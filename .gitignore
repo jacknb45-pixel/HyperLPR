@@ -34,3 +34,7 @@ venv/
 doc/*.pdf
 doc/*.png
 
+# Android 构建产物
+*.apk
+*.aab
+
