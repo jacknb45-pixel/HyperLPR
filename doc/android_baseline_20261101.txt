@@ -5,6 +5,8 @@ HyperLPR 端侧基准：Android 真机实测原始数据（2026-11-01）
 引擎：MNN，模型 r2_mobile（.mnn），默认 4 线程
 载体：Prj-Android BenchActivity（applicationId com.hyperai.example.lpr3_bench）
       新增 libstage_bench.so（链接官方 libhyperlpr3.so 导出的引擎内部符号，逐阶段打点）
+      ※ 上述测量载体属移动端改造，不在开题范围内，已从本分支剥离；
+        源码归档于 archive/stage-bench-v5 分支（C++ 与 Java 版本已对齐）。
 原始输出：应用私有目录 bench_result.txt（App 内可一键分享导出）
 
 

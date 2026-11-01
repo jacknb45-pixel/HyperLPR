@@ -10,6 +10,8 @@
 >   在 C++ 层对四算子用 `steady_clock` 逐阶段打点（3 次 warmup + 20 轮），
 >   **1080p 四阶段合计 141.49 ms**（det 68.00 / align 0.88 / rec 70.08 / cls 2.53），
 >   原始记录见 `android_baseline_20261101.txt`。
+> - 测量载体源码（`libstage_bench` 与 `BenchActivity`）属移动端改造，不在开题范围内，
+>   已从本分支剥离，归档于 `archive/stage-bench-v5` 分支，Part B 端侧阶段直接取用。
 > - 全部指标均在真机上直接实测，不存在跨平台换算。
 
 ## 表1 四阶段输入/输出张量形态（端侧本地）
