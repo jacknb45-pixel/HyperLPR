@@ -118,6 +118,12 @@ def profile_stages(image_path: str, rounds: int = 20, csv_out: str = None):
                 if rss_now > rss_peak:
                     rss_peak = rss_now
 
+    # 采样点必须紧贴推理循环结束处：后续汇总 print() 的控制台 I/O 会计入墙钟时间，
+    # 使 cores_used 的分母被拉大、等效核心数被稀释（此前采样点落在 print 之后）
+    if _HAS_PSUTIL:
+        cpu_t1 = time.process_time()
+        wall_t1 = time.perf_counter()
+
     if len(align_times) == 0:
         # 空检测防护：未检出车牌时 Align/Rec/Cls 均无样本，均值将为 NaN
         print("\n[错误] 输入图像未检出车牌，无法对 Align/Rec/Cls 阶段计时。")
@@ -153,10 +159,8 @@ def profile_stages(image_path: str, rounds: int = 20, csv_out: str = None):
     print(f"P2 切分点网络载荷削减率:    {reduction:7.2f} % (数据量缩减超 {raw_size_bytes/avg_patch_size:.0f} 倍!)")
 
     if _HAS_PSUTIL:
-        cpu_t1 = time.process_time()
-        wall_t1 = time.perf_counter()
-        # 口径说明：process_time 差值即进程实际消耗的 CPU 时间，
-        # 除以墙钟时间得到"等效核心数"（1.0 = 恰好跑满一个核）。
+        # 口径说明：process_time 差值即进程实际消耗的 CPU 时间（cpu_t1/wall_t1 在
+        # 推理循环结束处采样），除以墙钟时间得到"等效核心数"（1.0 = 恰好跑满一个核）。
         # 不再除以 cpu_count 换算整机百分比，避免与"单核跑满"表述冲突。
         cores_used = (cpu_t1 - cpu_t0) / (wall_t1 - wall_t0)
         cpu_util_all = cores_used / cpu_count * 100.0
