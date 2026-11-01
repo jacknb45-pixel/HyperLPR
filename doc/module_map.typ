@@ -71,35 +71,12 @@
     line((7.4, 6.6), (7.4, 6.4), mark: (end: ">", size: 0.13pt), stroke: 0.8pt)
     line((7.4, 4.7), (7.4, 4.5), mark: (end: ">", size: 0.13pt), stroke: 0.8pt)
 
-    // ============ 右侧：本项目新增 ============
-    rect((14.9, 2.8), (rel: (4.5, 10.5)), radius: 7pt,
-      fill: rgb("#fbeeea"), stroke: (paint: rgb("#d85a18"), thickness: 0.9pt, dash: "dashed"))
-    content((17.15, 13.0), text(size: 8.4pt, weight: "bold", fill: rgb("#993c1d"))[本项目新增])
-    note(17.15, 12.62, "Prj-Python/partitioning/", rgb("#993c1d"))
-
-    fnode(15.25, 11.55, 3.8, "ops.py", "四独立算子", rgb("#ffffff"), rgb("#d85a18"), rgb("#993c1d"))
-    fnode(15.25, 10.35, 3.8, "pipeline.py", "P0–P3 切换 + 三段计时", rgb("#ffffff"), rgb("#d85a18"), rgb("#993c1d"))
-    fnode(15.25, 9.15, 3.8, "netsim.py", "五档网络模拟", rgb("#ffffff"), rgb("#d85a18"), rgb("#993c1d"))
-    fnode(15.25, 7.95, 3.8, "transport.py", "REST + 本地等价桩", rgb("#ffffff"), rgb("#d85a18"), rgb("#993c1d"))
-    fnode(15.25, 6.75, 3.8, "benchmark / main.py", "全矩阵评测 CLI", rgb("#ffffff"), rgb("#d85a18"), rgb("#993c1d"))
-    fnode(15.25, 5.55, 3.8, "consistency.py", "识别一致性比对", rgb("#ffffff"), rgb("#d85a18"), rgb("#993c1d"))
-
-    content((17.15, 4.30), text(size: 7.2pt, weight: "bold", fill: rgb("#993c1d"))[只调用、不修改])
-    note(17.15, 3.90, "原库 1697 行零改动", rgb("#993c1d"))
-
-    // 解耦箭头：新增层 → 算子层
-    line((14.9, 11.95), (14.75, 11.95), (14.75, 8.05), (10.15, 8.05),
-      mark: (end: ">", size: 0.14pt),
-      stroke: (paint: rgb("#d85a18"), thickness: 0.9pt, dash: "dashed"))
-    note(13.5, 10.35, "替代 run() 硬编码", rgb("#993c1d"))
-    note(13.5, 10.00, "外部可插拔调度", rgb("#993c1d"))
-
     // 底部说明
     content((7.4, 1.95), text(size: 8pt, fill: rgb("#444441"))[
-      左列为 HyperLPR 原库 1697 行源码的模块分解（模块 → 文件 → 行数）；右列为本课题新增的划分层。
+      HyperLPR 原库 1697 行源码的模块分解（层 → 模块 → 文件 → 行数）。
     ])
     content((7.4, 1.45), text(size: 8pt, fill: rgb("#444441"))[
-      划分层通过 ops.py 重新编排四算子，*不侵入*原库任何一行，把"顺序固化"的流水线改造为可插拔流水线。
+      四阶段写死在 LPRMultiTaskPipeline.run() 内，无可插拔接缝 —— 这是后续解耦的对象。
     ])
   })
 ]

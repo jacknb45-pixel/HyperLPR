@@ -15,14 +15,15 @@ typst compile doc/dataflow.typ    doc/dataflow.png
 typst compile doc/confirmation_report.typ doc/confirmation_report.pdf
 ```
 
-（Windows 本机二进制：`C:/Users/eos11/.typst/typst-x86_64-pc-windows-msvc/typst.exe`）
+（若 `typst` 未加入 PATH，把命令中的 `typst` 替换为本地二进制的完整路径即可；
+各平台安装包见 <https://github.com/typst/typst/releases>。）
 
 ## 文件说明
 
 | 文件 | 作用 |
 |---|---|
 | `confirmation_report.typ` | 开题报告正文（M1 交付物，编译后 8 页 PDF） |
-| `module_map.typ` | 图 1：五层模块结构 + 划分层的模块到文件分配视图 |
+| `module_map.typ` | 图 1：原库五层模块结构与模块到文件分配视图 |
 | `dataflow.typ` | 图 2：四阶段数据流、张量形态与候选切分点 |
 | `tensor_shapes.md` | 图 2 的数据依据（张量形态与载荷表） |
 | `android_baseline_20261101.txt` | 真机实测原始记录（四阶段逐阶段计时） |
