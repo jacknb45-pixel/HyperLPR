@@ -6,7 +6,9 @@
 #let band(x, y, w, h, title, fillc, strokec, textc) = {
   import draw: *
   rect((x, y), (rel: (w, h)), radius: 7pt, fill: fillc, stroke: 0.5pt + strokec)
-  content((x + 0.16, y + h - 0.38), text(size: 8.4pt, weight: "bold", fill: textc)[#title])
+  // west 锚点：文字从框内左缘起排，不再以锚点为中心向左溢出色带（与 dataflow.typ 修法一致）
+  content((x + 0.2, y + h - 0.38), text(size: 8.4pt, weight: "bold", fill: textc)[#title],
+    anchor: "west")
 }
 
 #let fnode(x, y, w, name, path, fillc, strokec, textc) = {
