@@ -10,10 +10,13 @@ PDF / PNG 属于本地产物，已被 `.gitignore` 排除。
 正确顺序是先编译两张图：
 
 ```bash
-typst compile doc/module_map.typ  doc/module_map.png
-typst compile doc/dataflow.typ    doc/dataflow.png
+typst compile --ppi 300 doc/module_map.typ  doc/module_map.png
+typst compile --ppi 300 doc/dataflow.typ    doc/dataflow.png
 typst compile doc/confirmation_report.typ doc/confirmation_report.pdf
 ```
+
+`--ppi` 不能省：Typst 默认按 96 ppi 导出位图，直接放进 A4 报告会明显发虚。
+300 ppi 下两张图约 1748×1606 与 2598×1535 px，报告 PDF 约 1 MB。
 
 （若 `typst` 未加入 PATH，把命令中的 `typst` 替换为本地二进制的完整路径即可；
 各平台安装包见 <https://github.com/typst/typst/releases>。）
