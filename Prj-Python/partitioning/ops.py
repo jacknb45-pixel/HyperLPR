@@ -39,7 +39,7 @@ def align_crop(image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
 
 
 def box_crop(image: np.ndarray, rect: np.ndarray) -> np.ndarray:
-    """P3 专用：不做透视矫正，只按检测框直裁（云端再做精算）。"""
+    """直裁切片：不做透视矫正，只按检测框裁剪（供云端二次精算等场景使用）。"""
     x1, y1, x2, y2 = [int(v) for v in rect]
     h, w = image.shape[:2]
     x1, y1 = max(0, x1), max(0, y1)
@@ -79,7 +79,13 @@ def resolve_plate_type(plate_code: str, layer_num: int, cls_index: int = -1) -> 
 
 
 def full_recognize(recognizer, classifier, pad: np.ndarray, layer_num: int = 0) -> Tuple[str, float, int]:
-    """一次跑完 Stage 3 + Stage 4（云端 P2 接口内部就用这个）。"""
+    """一次跑完 Stage 3 + Stage 4；Stage 4 仅在号码规则判不出类型时才触发。
+
+    与原库 ``pipeline.py`` 的短路设计保持一致：先用 ``code_filter`` 按号码
+    规则判车牌类型，判得出来就跳过分类算子，不为每张切片白付一次推理。
+    """
     code, conf = run_recognition(recognizer, pad, layer_num)
+    if code_filter(code) != UNKNOWN:
+        return code, conf, resolve_plate_type(code, layer_num)
     cls_index = run_classification(classifier, pad)
     return code, conf, resolve_plate_type(code, layer_num, cls_index)
