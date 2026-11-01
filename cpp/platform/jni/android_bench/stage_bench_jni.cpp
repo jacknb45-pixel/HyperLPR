@@ -1,16 +1,18 @@
 //
-// HyperLPR 四阶段逐阶段计时（Android / JNI）
+// HyperLPR 四阶段逐阶段计时（Android / JNI）—— v5 分步初始化版
 //
 // 目的：官方 Java SDK 只暴露 plateRecognition()，拿不到各阶段耗时；
 // 这里直接在 C++ 层把 Detect / Align / Rec / Cls 四个阶段拆开计时，
 // 与桌面侧 profile_baseline.py 的四阶段口径一一对应。
 //
-// 实现要点：
-//   1. 不编译 hyperlpr / MNN / OpenCV，直接复用官方 AAR 里 libhyperlpr3.so 已导出的符号
-//      （hyper::DetArch / RecognitionEngine / ClassificationEngine 与 cv::* 均在动态符号表中）；
-//   2. libhyperlpr3.so 没有链接 imgcodecs（无 cv::imread / imencode），
-//      因此图像由 Java 侧解码成 BGR 字节传入，切片体积也由 Java 侧 JPEG q95 编码统计；
-//   3. 用 JNI_OnLoad + RegisterNatives 注册，避免包名下划线造成的函数名转义问题。
+// v5 变更（针对真机 native SIGSEGV 无法定位的问题）：
+//   1. 引擎初始化拆成 nativeCreateSession / nativeInitDet / nativeInitCls / nativeInitRec
+//      独立 JNI 调用，Java 侧在每步之间输出日志并落盘——崩溃时能精确定位到哪一步；
+//   2. 推理拆成单轮 nativeRunOnce，Java 侧控制 warmup 与统计循环；
+//   3. 其余同 v3：不编译 hyperlpr / MNN / OpenCV，直接复用官方 AAR 里
+//      libhyperlpr3.so 已导出的符号；图像由 Java 侧解码成 BGR 传入
+//      （官方库没链 imgcodecs，无 cv::imread）；
+//   4. 用 JNI_OnLoad + RegisterNatives 注册，避开包名下划线的函数名转义问题。
 //
 // 对应 Java 类：com.hyperai.example.lpr3_bench.NativeStageBench
 //
@@ -21,7 +23,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <numeric>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -45,21 +47,6 @@ static std::string g_last_code;
 static std::string g_last_error;
 static cv::Mat g_last_patch;
 
-struct Stat {
-    std::vector<double> v;
-    void add(double x) { v.push_back(x); }
-    double mean() const {
-        if (v.empty()) return 0.0;
-        return std::accumulate(v.begin(), v.end(), 0.0) / (double) v.size();
-    }
-    double stddev() const {
-        if (v.size() < 2) return 0.0;
-        double m = mean(), s = 0.0;
-        for (double x : v) s += (x - m) * (x - m);
-        return std::sqrt(s / (double) (v.size() - 1));
-    }
-};
-
 // 一次完整的四阶段流水线，返回各阶段毫秒
 struct StageResult {
     double det = 0, align = 0, rec = 0, cls = 0;
@@ -67,19 +54,31 @@ struct StageResult {
     std::string code;
 };
 
-static StageResult run_once(DetArch &det_arch, RecognitionEngine &rec_engine,
-                            ClassificationEngine &cls_engine, const cv::Mat &image) {
+// 会话：三个引擎 + 配置。生命周期完全由 Java 侧 create/destroy 控制，
+// 任何一步初始化失败都能从 Java 日志里看到是哪个引擎。
+struct BenchSession {
+    std::string model_dir;
+    int det_input_size = 320;
+    bool det_ready = false;
+    bool cls_ready = false;
+    bool rec_ready = false;
+    DetArch det;
+    ClassificationEngine cls;
+    RecognitionEngine rec;
+};
+
+static StageResult run_once(BenchSession &s, const cv::Mat &image) {
     StageResult r;
 
     // ---------- Stage 1: Detect ----------
     auto t0 = clk::now();
-    det_arch.Detection(image, true, 1.0f);
+    s.det.Detection(image, true, 1.0f);
     auto t1 = clk::now();
     r.det = ms_between(t0, t1);
 
-    if (det_arch.m_results_.empty()) return r;
+    if (s.det.m_results_.empty()) return r;
     r.detected = true;
-    auto &loc = det_arch.m_results_[0];
+    auto &loc = s.det.m_results_[0];
 
     // ---------- Stage 2: Align ----------
     cv::Mat align_image;
@@ -103,9 +102,9 @@ static StageResult run_once(DetArch &det_arch, RecognitionEngine &rec_engine,
             cv::Mat &align = candidate[j];
             cv::Mat align_pad;
             float wh_ratio = (float) align.cols / align.rows;
-            imagePadding(align, align_pad, wh_ratio, rec_engine.getMInputImageSize());
+            imagePadding(align, align_pad, wh_ratio, s.rec.getMInputImageSize());
             TextLine candidate_text;
-            rec_engine.Inference(align_pad, candidate_text);
+            s.rec.Inference(align_pad, candidate_text);
             text_line.code += candidate_text.code;
             text_line.average_score += candidate_text.average_score;
         }
@@ -113,8 +112,8 @@ static StageResult run_once(DetArch &det_arch, RecognitionEngine &rec_engine,
     } else {
         cv::Mat align_image_pad;
         float wh_ratio = (float) align_image.cols / align_image.rows;
-        imagePadding(align_image, align_image_pad, wh_ratio, rec_engine.getMInputImageSize());
-        rec_engine.Inference(align_image_pad, text_line);
+        imagePadding(align_image, align_image_pad, wh_ratio, s.rec.getMInputImageSize());
+        s.rec.Inference(align_image_pad, text_line);
     }
     auto t5 = clk::now();
     r.rec = ms_between(t4, t5);
@@ -123,8 +122,8 @@ static StageResult run_once(DetArch &det_arch, RecognitionEngine &rec_engine,
     // ---------- Stage 4: Cls ----------
     cv::Mat cls_image;
     auto t6 = clk::now();
-    cv::resize(align_image, cls_image, cls_engine.getMInputImageSize());
-    cls_engine.Inference(cls_image);
+    cv::resize(align_image, cls_image, s.cls.getMInputImageSize());
+    s.cls.Inference(cls_image);
     auto t7 = clk::now();
     r.cls = ms_between(t6, t7);
 
@@ -133,19 +132,14 @@ static StageResult run_once(DetArch &det_arch, RecognitionEngine &rec_engine,
     return r;
 }
 
-static jdoubleArray empty_result(JNIEnv *env) {
-    double z[12] = {0};
-    jdoubleArray arr = env->NewDoubleArray(12);
-    env->SetDoubleArrayRegion(arr, 0, 12, z);
-    return arr;
+static BenchSession *as_session(jlong h) {
+    return reinterpret_cast<BenchSession *>(h);
 }
 
-// nativeRun(modelDir, bgr, w, h, rounds, threads, detLevel) -> double[12]
-// [0]=det_mean [1]=det_std [2]=align_mean [3]=align_std
-// [4]=rec_mean [5]=rec_std [6]=cls_mean [7]=cls_std
-// [8]=total_mean [9]=patch_w [10]=patch_h [11]=detected_rounds
-static jdoubleArray native_run(JNIEnv *env, jclass, jstring jModelDir, jbyteArray jBgr,
-                               jint w, jint h, jint rounds, jint threads, jint detLevel) {
+// ---------- 生命周期 ----------
+
+// nativeCreateSession(modelDir) -> handle（0 = 失败）
+static jlong native_create_session(JNIEnv *env, jclass, jstring jModelDir) {
     g_last_error.clear();
     g_last_code.clear();
     g_last_patch.release();
@@ -154,76 +148,129 @@ static jdoubleArray native_run(JNIEnv *env, jclass, jstring jModelDir, jbyteArra
     std::string model_dir(c_model ? c_model : "");
     env->ReleaseStringUTFChars(jModelDir, c_model);
 
-    jsize len = env->GetArrayLength(jBgr);
-    if (len < w * h * 3) {
-        g_last_error = "bgr buffer too small";
+    BenchSession *s = new (std::nothrow) BenchSession();
+    if (s == nullptr) {
+        g_last_error = "session alloc failed";
+        return 0;
+    }
+    s->model_dir = model_dir;
+    g_last_error = "session created";
+    SB_LOGI("session created: %s", model_dir.c_str());
+    return reinterpret_cast<jlong>(s);
+}
+
+// nativeInitDet(handle, threads, inputSize) -> bool
+static jboolean native_init_det(JNIEnv *env, jclass, jlong h, jint threads, jint inputSize) {
+    BenchSession *s = as_session(h);
+    if (s == nullptr || s->det_ready) return JNI_FALSE;
+    s->det_input_size = (inputSize == 640) ? 640 : 320;
+    std::string backbone = s->model_dir + "/" +
+                           (s->det_input_size == 640 ? DETECT_HIGH_BACKBONE_FILENAME
+                                                     : DETECT_LOW_BACKBONE_FILENAME);
+    std::string header = s->model_dir + "/" +
+                         (s->det_input_size == 640 ? DETECT_HIGH_HEAD_FILENAME
+                                                   : DETECT_LOW_HEAD_FILENAME);
+    g_last_error = "init det: calling Initialize...";
+    SB_LOGI("init det: %s threads=%d", backbone.c_str(), threads);
+    int ret = s->det.Initialize(backbone, header, s->det_input_size, threads, 0.3f, 0.5f, false);
+    if (ret != 0) {
+        g_last_error = "det init failed: " + backbone;
         SB_LOGE("%s", g_last_error.c_str());
-        return empty_result(env);
+        return JNI_FALSE;
+    }
+    s->det_ready = true;
+    g_last_error = "det init ok";
+    return JNI_TRUE;
+}
+
+// nativeInitCls(handle, threads) -> bool
+static jboolean native_init_cls(JNIEnv *env, jclass, jlong h, jint threads) {
+    BenchSession *s = as_session(h);
+    if (s == nullptr || s->cls_ready) return JNI_FALSE;
+    std::string model = s->model_dir + "/" + CLS_MODEL_FILENAME;
+    g_last_error = "init cls: calling Initialize...";
+    SB_LOGI("init cls: %s threads=%d", model.c_str(), threads);
+    int ret = s->cls.Initialize(model, CLS_INPUT_SIZE, threads, false);
+    if (ret != 0) {
+        g_last_error = "cls init failed: " + model;
+        SB_LOGE("%s", g_last_error.c_str());
+        return JNI_FALSE;
+    }
+    s->cls_ready = true;
+    g_last_error = "cls init ok";
+    return JNI_TRUE;
+}
+
+// nativeInitRec(handle, threads) -> bool
+static jboolean native_init_rec(JNIEnv *env, jclass, jlong h, jint threads) {
+    BenchSession *s = as_session(h);
+    if (s == nullptr || s->rec_ready) return JNI_FALSE;
+    std::string model = s->model_dir + "/" + REC_MODEL_FILENAME;
+    g_last_error = "init rec: calling Initialize...";
+    SB_LOGI("init rec: %s threads=%d", model.c_str(), threads);
+    int ret = s->rec.Initialize(model, REC_INPUT_SIZE, threads, 0.5f, false);
+    if (ret != 0) {
+        g_last_error = "rec init failed: " + model;
+        SB_LOGE("%s", g_last_error.c_str());
+        return JNI_FALSE;
+    }
+    s->rec_ready = true;
+    g_last_error = "rec init ok";
+    return JNI_TRUE;
+}
+
+// nativeDestroySession(handle)
+static void native_destroy_session(JNIEnv *env, jclass, jlong h) {
+    BenchSession *s = as_session(h);
+    if (s == nullptr) return;
+    delete s;
+    g_last_error = "session destroyed";
+    SB_LOGI("session destroyed");
+}
+
+// ---------- 单轮推理 ----------
+
+// nativeRunOnce(handle, bgr, w, h) -> double[5] {det_ms, align_ms, rec_ms, cls_ms, detected}
+static jdoubleArray native_run_once(JNIEnv *env, jclass, jlong h, jbyteArray jBgr,
+                                    jint w, jint hgt) {
+    BenchSession *s = as_session(h);
+    double out[5] = {0, 0, 0, 0, 0};
+    if (s == nullptr) {
+        g_last_error = "invalid session handle";
+        jdoubleArray arr = env->NewDoubleArray(5);
+        env->SetDoubleArrayRegion(arr, 0, 5, out);
+        return arr;
+    }
+    if (!s->det_ready || !s->rec_ready || !s->cls_ready) {
+        g_last_error = "engines not ready (det/cls/rec)";
+        jdoubleArray arr = env->NewDoubleArray(5);
+        env->SetDoubleArrayRegion(arr, 0, 5, out);
+        return arr;
+    }
+
+    jsize len = env->GetArrayLength(jBgr);
+    if (len < w * hgt * 3) {
+        g_last_error = "bgr buffer too small";
+        jdoubleArray arr = env->NewDoubleArray(5);
+        env->SetDoubleArrayRegion(arr, 0, 5, out);
+        return arr;
     }
     jbyte *data = env->GetByteArrayElements(jBgr, nullptr);
-    cv::Mat bgr(h, w, CV_8UC3, (unsigned char *) data);
-    cv::Mat image = bgr.clone();
+    cv::Mat bgr(hgt, w, CV_8UC3, (unsigned char *) data);
+    cv::Mat image = bgr.clone();   // 拷贝一份，避免持有 JNI 缓冲
     env->ReleaseByteArrayElements(jBgr, data, JNI_ABORT);
 
-    const int input_size = (detLevel == 640) ? 640 : 320;
-    std::string det_backbone = model_dir + "/" +
-                               (input_size == 640 ? DETECT_HIGH_BACKBONE_FILENAME : DETECT_LOW_BACKBONE_FILENAME);
-    std::string det_header = model_dir + "/" +
-                             (input_size == 640 ? DETECT_HIGH_HEAD_FILENAME : DETECT_LOW_HEAD_FILENAME);
-    std::string cls_model = model_dir + "/" + CLS_MODEL_FILENAME;
-    std::string rec_model = model_dir + "/" + REC_MODEL_FILENAME;
+    StageResult r = run_once(*s, image);
+    if (!r.code.empty()) g_last_code = r.code;
 
-    DetArch det_arch;
-    if (det_arch.Initialize(det_backbone, det_header, input_size, threads, 0.3f, 0.5f, false) != 0) {
-        g_last_error = "det init failed: " + det_backbone;
-        SB_LOGE("%s", g_last_error.c_str());
-        return empty_result(env);
-    }
-    ClassificationEngine cls_engine;
-    if (cls_engine.Initialize(cls_model, CLS_INPUT_SIZE, threads, false) != 0) {
-        g_last_error = "cls init failed: " + cls_model;
-        SB_LOGE("%s", g_last_error.c_str());
-        return empty_result(env);
-    }
-    RecognitionEngine rec_engine;
-    if (rec_engine.Initialize(rec_model, REC_INPUT_SIZE, threads, 0.5f, false) != 0) {
-        g_last_error = "rec init failed: " + rec_model;
-        SB_LOGE("%s", g_last_error.c_str());
-        return empty_result(env);
-    }
+    out[0] = r.det;
+    out[1] = r.align;
+    out[2] = r.rec;
+    out[3] = r.cls;
+    out[4] = r.detected ? 1.0 : 0.0;
 
-    // warmup
-    for (int i = 0; i < 3; ++i) run_once(det_arch, rec_engine, cls_engine, image);
-
-    Stat sdet, salign, srec, scls, stotal;
-    int detected_rounds = 0;
-    for (int i = 0; i < rounds; ++i) {
-        StageResult r = run_once(det_arch, rec_engine, cls_engine, image);
-        if (!r.detected) continue;
-        detected_rounds++;
-        sdet.add(r.det);
-        salign.add(r.align);
-        srec.add(r.rec);
-        scls.add(r.cls);
-        stotal.add(r.det + r.align + r.rec + r.cls);
-        if (!r.code.empty()) g_last_code = r.code;
-    }
-
-    double out[12] = {0};
-    out[0] = sdet.mean();   out[1] = sdet.stddev();
-    out[2] = salign.mean(); out[3] = salign.stddev();
-    out[4] = srec.mean();   out[5] = srec.stddev();
-    out[6] = scls.mean();   out[7] = scls.stddev();
-    out[8] = stotal.mean();
-    out[9] = g_last_patch.empty() ? 0.0 : (double) g_last_patch.cols;
-    out[10] = g_last_patch.empty() ? 0.0 : (double) g_last_patch.rows;
-    out[11] = (double) detected_rounds;
-
-    SB_LOGI("%dx%d th=%d det=%.2f align=%.2f rec=%.2f cls=%.2f total=%.2f code=%s",
-            w, h, threads, out[0], out[2], out[4], out[6], out[8], g_last_code.c_str());
-
-    jdoubleArray arr = env->NewDoubleArray(12);
-    env->SetDoubleArrayRegion(arr, 0, 12, out);
+    jdoubleArray arr = env->NewDoubleArray(5);
+    env->SetDoubleArrayRegion(arr, 0, 5, out);
     return arr;
 }
 
@@ -254,11 +301,16 @@ static jbyteArray native_last_patch_bytes(JNIEnv *env, jclass) {
 }
 
 static const JNINativeMethod kMethods[] = {
-        {"nativeRun",            "(Ljava/lang/String;[BIIII)[D", (void *) native_run},
-        {"nativeLastCode",       "()Ljava/lang/String;",         (void *) native_last_code},
-        {"nativeLastError",      "()Ljava/lang/String;",         (void *) native_last_error},
-        {"nativeLastPatchSize",  "()[I",                         (void *) native_last_patch_size},
-        {"nativeLastPatchBytes", "()[B",                         (void *) native_last_patch_bytes},
+        {"nativeCreateSession",   "(Ljava/lang/String;)J",        (void *) native_create_session},
+        {"nativeInitDet",         "(JII)Z",                       (void *) native_init_det},
+        {"nativeInitCls",         "(JI)Z",                        (void *) native_init_cls},
+        {"nativeInitRec",         "(JI)Z",                        (void *) native_init_rec},
+        {"nativeRunOnce",         "(J[BII)[D",                    (void *) native_run_once},
+        {"nativeDestroySession",  "(J)V",                         (void *) native_destroy_session},
+        {"nativeLastCode",        "()Ljava/lang/String;",         (void *) native_last_code},
+        {"nativeLastError",       "()Ljava/lang/String;",         (void *) native_last_error},
+        {"nativeLastPatchSize",   "()[I",                         (void *) native_last_patch_size},
+        {"nativeLastPatchBytes",  "()[B",                         (void *) native_last_patch_bytes},
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *) {
@@ -267,9 +319,13 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *) {
     jclass cls = env->FindClass("com/hyperai/example/lpr3_bench/NativeStageBench");
     if (cls == nullptr) {
         SB_LOGE("NativeStageBench class not found");
-        return JNI_VERSION_1_6;
+        return JNI_ERR;   // 注册失败要让 loadLibrary 抛异常，而不是静默降级
     }
-    env->RegisterNatives(cls, kMethods, (jint) (sizeof(kMethods) / sizeof(kMethods[0])));
+    if (env->RegisterNatives(cls, kMethods,
+                             (jint) (sizeof(kMethods) / sizeof(kMethods[0]))) != JNI_OK) {
+        SB_LOGE("RegisterNatives failed");
+        return JNI_ERR;
+    }
     SB_LOGI("StageBench natives registered");
     return JNI_VERSION_1_6;
 }
