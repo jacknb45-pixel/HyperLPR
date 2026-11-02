@@ -46,7 +46,8 @@
       rgb("#f1efe8"), rgb("#b4b2a9"), rgb("#444441"))
     fnode(0.75, 9.55, 3.6, "pipeline.py", "inference/ · 121 行", white, rgb("#afa9ec"), rgb("#3c3489"))
     note(9.6, 10.17, "LPRMultiTaskPipeline.run()")
-    note(9.6, 9.79, "顺序与执行位置写死 · 解耦对象")
+    note(9.6, 9.79, "四阶段的调用顺序与执行位置都写死于此，")
+    note(9.6, 9.45, "是后续解耦的对象")
 
     // 算子层（双行：检测 / 识别与分类）
     band(0.4, 5.6, 14.0, 3.2, "算子层　深度学习推理算子（前处理 → ONNX 前向 → 后处理）",
@@ -54,6 +55,8 @@
     fnode(0.75, 7.02, 3.5, "multitask_detect.py", "inference/ · 184 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
     fnode(4.45, 7.02, 2.9, "detect.py", "inference/ · 200 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
     fnode(7.55, 7.02, 2.5, "vertex.py", "inference/ · 83 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
+    note(10.35, 7.55, "detect.py / vertex.py 仅供备用管线")
+    note(10.35, 7.15, "LPRPipeline，主路径未使用")
     fnode(0.75, 5.85, 3.5, "recognition.py", "inference/ · 233 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
     fnode(4.45, 5.85, 3.4, "classification.py", "inference/ · 49 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
 
@@ -74,14 +77,16 @@
     fnode(11.6, 3.22, 2.6, "configuration.py", "config/ · 63 行", white, rgb("#85b7eb"), rgb("#0c447c"))
     note(9.15, 2.9, "启动期由 hyperlpr3.py 读取并初始化")
 
-    // 主调用箭头：接口 → 编排 → 算子 → 数据层（配置层无入边）
+    // 主调用箭头：接口 → 编排 → 算子 → 数据层；接口层启动期读取配置层（走右侧绕行）
     line((7.4, 11.8), (7.4, 11.3), mark: (end: ">", size: 0.15pt), stroke: 0.8pt)
     line((7.4, 9.3), (7.4, 8.8), mark: (end: ">", size: 0.15pt), stroke: 0.8pt)
     line((4.5, 5.6), (4.5, 5.1), mark: (end: ">", size: 0.15pt), stroke: 0.8pt)
+    line((14.4, 12.6), (14.75, 12.6), (14.75, 5.35), (12.0, 5.35), (12.0, 5.1),
+      mark: (end: ">", size: 0.15pt), stroke: 0.8pt)
 
     // 底部说明
     content((7.4, 1.9), text(size: 8pt, fill: rgb("#444441"))[
-      HyperLPR 原库 1697 行源码的模块分解（层 → 文件 → 行数）。
+      HyperLPR 原库核心源文件 1535 行的模块分解（层 → 文件 → 行数）；全部 1697 行另含 162 行辅助代码。
     ])
     content((7.4, 1.4), text(size: 8pt, fill: rgb("#444441"))[
       实线箭头为调用依赖；数据层与配置层是平级基础设施，彼此之间不存在上下游关系。

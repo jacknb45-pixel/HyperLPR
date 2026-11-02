@@ -134,7 +134,7 @@
 
 #figure(
   image("module_map.png", width: 97%),
-  caption: [HyperLPR 源码模块结构（原库 1697 行源码的分层分解：层 → 模块 → 文件 → 行数）],
+  caption: [HyperLPR 源码模块结构（核心源文件 1535 行的分层分解：层 → 模块 → 文件 → 行数；全库 1697 行）],
 )
 
 原库可分为*三层主业务管线*（接口 → 编排 → 算子）与*两层平级支撑*（数据、配置，均为只被依赖的基础设施），对应关系如下表（其余 162 行为 #mono(`__init__.py`)、#mono(`mnn_adapt.py`)、#mono(`sample.py`) 等辅助代码，未单列）：
@@ -145,12 +145,12 @@
   table.header([*层次*], [*职责*], [*关键源文件*], [*行数*]),
   [接口层], [对外暴露识别入口与 CLI／Web 服务], [#mono(`hyperlpr3.py`)、#mono(`command/cli.py`)、#mono(`command/serve.py`)], [190],
   [编排层], [把四个算子串成顺序流水线，负责张量与元数据流转], [#mono(`inference/pipeline.py`)（#mono(`LPRMultiTaskPipeline`)）], [121],
-  [算子层], [检测／识别／分类的 ONNX 会话封装（前处理 → 推理 → 后处理）], [#mono(`multitask_detect.py`)、#mono(`detect.py`)、#mono(`vertex.py`)、#mono(`recognition.py`)、#mono(`classification.py`)], [749],
+  [算子层], [检测／识别／分类的 ONNX 会话封装（前处理 → 推理 → 后处理）], [#mono(`multitask_detect.py`)、#mono(`recognition.py`)、#mono(`classification.py`)，及仅供备用管线 #mono(`LPRPipeline`) 的 #mono(`detect.py`)、#mono(`vertex.py`)（主路径未用）], [749],
   [数据层], [检测后处理（NMS／IoU）、透视变换对齐、类型定义与词表], [#mono(`common/tools_process.py`)、#mono(`common/typedef.py`)、#mono(`common/tokenize.py`)], [390],
   [配置层], [模型路径、运行时参数与初始化（仅启动期被接口层读取）], [#mono(`config/settings.py`)、#mono(`config/configuration.py`)], [85],
 )
 
-值得注意的是，*四角点由检测阶段一并预测*（YOLOv5 风格多任务头，每锚点输出 15 维），因此"检测 + 对齐"天然可以打包留在端侧，无需为对齐单独跑一个模型；而 Stage 4 分类并非每帧必跑——只有当识别出的车牌号长度 ≥ 7 且规则判不出类型时才触发，属于库内既有的算力优化。
+值得注意的是，*四角点由检测阶段一并预测*（YOLOv5 风格多任务头，每锚点输出 15 维），因此"检测 + 对齐"天然可以打包留在端侧，无需为对齐单独跑一个模型；而 Stage 4 分类并非每帧必跑——只有当识别出的车牌号长度 ≥ 7 且规则判不出类型时才触发，属于库内既有的算力优化（其 2.53 ms 的实测耗时为强制调用分类器所得）。
 
 == 从"固化流水线"到"可插拔流水线"
 
@@ -161,7 +161,7 @@
   align: (left, left, left, left),
   table.header([*阶段*], [*实现类／函数*], [*输入 → 输出*], [*算法性质*]),
   [Stage 1 定位], [#mono(`MultiTaskDetectorORT`)], [原图 → 每车 14 维（框 4 + 置信 1 + 四角点 8 + 层标志 1）], [深度学习（YOLOv5 风格多任务头）],
-  [Stage 2 对齐], [#mono(`get_rotate_crop_image`)], [原图 + 四角点 → 切片 48×160×3], [传统 CV（透视变换，纯几何）],
+  [Stage 2 对齐], [#mono(`get_rotate_crop_image`)], [原图 + 四角点 → 矫正切片 W×H×3], [传统 CV（透视变换，纯几何）],
   [Stage 3 识别], [#mono(`PPRCNNRecognitionORT`)], [切片 → 车牌号字符串 + 置信度], [深度学习（CRNN + CTC 解码）],
   [Stage 4 分类], [#mono(`ClassificationORT`)], [切片 → 类别索引（蓝／黄／绿）], [深度学习（3 类 CNN，条件触发）],
 )
@@ -171,7 +171,7 @@
 
 #figure(
   image("dataflow.png", width: 103%),
-  caption: [推理流水线数据流与候选切分点（节点标注为各算子实测耗时与中间载荷，横贯虚线为切分面）],
+  caption: [推理流水线数据流与候选切分点（节点标注为各算子实测耗时与中间载荷；横贯虚线为切分面，切片经端侧 JPEG 编码后垂直穿面上行）],
 )
 
 各节点张量形态与载荷的定量对比：
@@ -183,11 +183,11 @@
   [输入原图], [H×W×3，uint8 BGR], [385 KB\~2 MB], [1080p 典型 1920×1080],
   [检测输出], [1×25200×15，float32], [—], [经置信度过滤 + NMS 后每车剩 14 维],
   [四角点], [4×2，int], [—], [检测阶段"白送"，无需额外模型],
-  [*车牌切片*], [*48×160×3，uint8*], [*5.81\~12.73 KB*], [*JPEG q95 编码（真机实测）；切分点产物*],
+  [*车牌切片*], [*W×H×3，uint8*], [*5.81\~12.73 KB*], [*JPEG q95 编码（真机实测）；切分点产物*],
   [识别输出], [1×40×6625，float32], [—], [40 时间步 × 6625 类字符，CTC 解码],
 )
 
-切片的*空间尺寸*由算法固定为 48×160×3，与输入图像无关；JPEG q95 编码后的字节数随切片内容在数 KB 量级浮动。因此*削减倍率是原图体积的函数*（下表切片体积为同一 APK 内 #mono(`Bitmap.compress`) 的真机实测值）：
+切片的*空间尺寸随检测角点间距变化*——透视变换直接在原分辨率下输出矫正图，并非固定 48×160；48×160 是 Stage 3 识别器的输入尺寸，缩放发生在 #mono(`recognition.py`) 的 #mono(`encode_images`) 中，属于 Stage 3 的前处理。JPEG q95 编码后的字节数随切片内容在数 KB 量级浮动，编码耗时未计入 Stage 2 计时。因此*削减倍率是原图体积的函数*（下表切片体积为同一 APK 内对可变尺寸切片直接 #mono(`Bitmap.compress`) 的真机实测值）：
 
 #table(
   columns: (24%, 17%, 18%, 19%, 22%),
