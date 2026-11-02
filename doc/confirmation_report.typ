@@ -133,11 +133,11 @@
 == 模块到文件的分配结构
 
 #figure(
-  image("module_map.png", width: 104%),
+  image("module_map.png", width: 97%),
   caption: [HyperLPR 源码模块结构（原库 1697 行源码的分层分解：层 → 模块 → 文件 → 行数）],
 )
 
-原库可分为五个层次，模块与源文件的对应关系如下表（框内数字为源文件行数）：
+原库可分为*三层主业务管线*（接口 → 编排 → 算子）与*两层平级支撑*（数据、配置，均为只被依赖的基础设施），对应关系如下表（其余 162 行为 #mono(`__init__.py`)、#mono(`mnn_adapt.py`)、#mono(`sample.py`) 等辅助代码，未单列）：
 
 #table(
   columns: (13%, 34%, 40%, 13%),
@@ -146,8 +146,8 @@
   [接口层], [对外暴露识别入口与 CLI／Web 服务], [#mono(`hyperlpr3.py`)、#mono(`command/cli.py`)、#mono(`command/serve.py`)], [190],
   [编排层], [把四个算子串成顺序流水线，负责张量与元数据流转], [#mono(`inference/pipeline.py`)（#mono(`LPRMultiTaskPipeline`)）], [121],
   [算子层], [检测／识别／分类的 ONNX 会话封装（前处理 → 推理 → 后处理）], [#mono(`multitask_detect.py`)、#mono(`detect.py`)、#mono(`vertex.py`)、#mono(`recognition.py`)、#mono(`classification.py`)], [749],
-  [数据层], [图像几何变换（对齐）、类型定义、字符词表], [#mono(`common/tools_process.py`)、#mono(`common/typedef.py`)], [386],
-  [配置层], [模型路径、运行时参数与初始化], [#mono(`config/settings.py`)、#mono(`config/configuration.py`)], [85],
+  [数据层], [检测后处理（NMS／IoU）、透视变换对齐、类型定义与词表], [#mono(`common/tools_process.py`)、#mono(`common/typedef.py`)、#mono(`common/tokenize.py`)], [390],
+  [配置层], [模型路径、运行时参数与初始化（仅启动期被接口层读取）], [#mono(`config/settings.py`)、#mono(`config/configuration.py`)], [85],
 )
 
 值得注意的是，*四角点由检测阶段一并预测*（YOLOv5 风格多任务头，每锚点输出 15 维），因此"检测 + 对齐"天然可以打包留在端侧，无需为对齐单独跑一个模型；而 Stage 4 分类并非每帧必跑——只有当识别出的车牌号长度 ≥ 7 且规则判不出类型时才触发，属于库内既有的算力优化。

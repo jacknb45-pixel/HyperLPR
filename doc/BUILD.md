@@ -16,7 +16,7 @@ typst compile doc/confirmation_report.typ doc/confirmation_report.pdf
 ```
 
 `--ppi` 不能省：Typst 默认按 96 ppi 导出位图，直接放进 A4 报告会明显发虚。
-300 ppi 下两张图约 1748×1606 与 2598×1535 px，报告 PDF 约 1 MB。
+300 ppi 下两张图约 1748×1730 与 2362×1299 px，报告 PDF 约 0.9 MB。
 
 （若 `typst` 未加入 PATH，把命令中的 `typst` 替换为本地二进制的完整路径即可；
 各平台安装包见 <https://github.com/typst/typst/releases>。）
@@ -36,4 +36,9 @@ typst compile doc/confirmation_report.typ doc/confirmation_report.pdf
 ## Typst 排版注意事项
 
 - `~` 在 markup 中表示**不换行空格**，数值范围必须写成 `\~`（否则渲染后波浪号丢失）；
-- cetz 的 `content()` 内单换行会被当作空格拼接，多行文本需在每个行尾加 `\`。
+  但 cetz 辅助函数若以**字符串参数**接收文本（如 `fnode` 的 `path`），参数里写 `\~` 会字面显示反斜杠——
+  字符串里直接写 `~` 即可（插值字符串不经过 markup 解析）；
+- cetz 的 `content()` 内单换行会被当作空格拼接，多行文本需在每个行尾加 `\`；
+- cetz 中**后绘制者在上层**：跨层连线若被后画的色带/节点覆盖，须把 `line` 移到 `canvas` 末尾；
+- cetz 辅助函数（`content`/`line`）不可在模块顶层定义——全局 `content` 没有 `anchor` 参数，
+  必须在 `canvas({ import draw: * ... })` 内定义。
