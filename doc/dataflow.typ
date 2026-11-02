@@ -55,15 +55,13 @@
     band(0, 3.0, 16.6, 2.2, "云端 Server　·　Cloud Tier")
     node(14.15, 3.25, 2.2, "接收切片", "JPEG 字节流")
     node(10.75, 3.25, 3.0, "Stage 3 字符识别", "70.08 ms · 占 49.5%")
-    node(6.35, 3.25, 3.4, "Stage 4 属性分类", "条件触发 · 2.53 ms")
-    node(0.25, 3.25, 5.7, "车牌号 + 类型 + 置信度", "JSON 回传端侧")
+    node(6.95, 3.25, 3.4, "Stage 4 属性分类", "条件触发 · 2.53 ms")
+    node(0.25, 3.25, 6.3, "车牌号 + 类型 + 置信度", "JSON 回传端侧")
 
     line((14.15, 3.83), (13.75, 3.83), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
-    // Stage 3 → Stage 4 为条件触发（长度 ≥ 7 且规则判不出类型）：间隙加宽到 1.0cm
-    // 并用密集虚线，避免短线看不出虚线特征
-    line((10.75, 3.83), (9.75, 3.83), mark: (end: ">", size: 0.14pt),
-      stroke: (paint: rgb("#333333"), thickness: 0.8pt, dash: "densely-dashed"))
-    line((6.35, 3.83), (5.95, 3.83), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
+    // Stage 3 → Stage 4 的条件触发由副标题文字标注，连线与其他阶段保持一致的实线
+    line((10.75, 3.83), (10.35, 3.83), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
+    line((6.95, 3.83), (6.55, 3.83), mark: (end: ">", size: 0.14pt), stroke: 0.8pt)
 
     // 底部注记：走线方向与计时口径
     content((0.15, 2.6), anchor: "west", text(size: 7pt, fill: rgb("#555550"))[
