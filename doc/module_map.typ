@@ -3,19 +3,20 @@
 #set page(width: auto, height: auto, margin: 0.4cm)
 #set text(font: ("SimSun", "Source Han Serif SC"), size: 10pt)
 
+// 注：fillc / strokec / textc 三个参数保留以兼容既有调用点，实际配色统一为黑白灰工程风
 #let band(x, y, w, h, title, fillc, strokec, textc) = {
   import draw: *
-  rect((x, y), (rel: (w, h)), radius: 7pt, fill: fillc, stroke: 0.5pt + strokec)
+  rect((x, y), (rel: (w, h)), radius: 2pt, fill: rgb("#f8f9fa"), stroke: 0.6pt + rgb("#333333"))
   // west 锚点：文字从框内左缘起排，不再以锚点为中心向左溢出色带（与 dataflow.typ 修法一致）
-  content((x + 0.2, y + h - 0.38), text(size: 8.4pt, weight: "bold", fill: textc)[#title],
+  content((x + 0.2, y + h - 0.38), text(size: 8.4pt, weight: "bold", fill: rgb("#333333"))[#title],
     anchor: "west")
 }
 
 #let fnode(x, y, w, name, path, fillc, strokec, textc) = {
   import draw: *
-  rect((x, y), (rel: (w, 0.92)), radius: 3pt, fill: fillc, stroke: 0.5pt + strokec)
-  content((x + w / 2, y + 0.60), text(size: 7.2pt, weight: "bold", fill: textc)[#name])
-  content((x + w / 2, y + 0.26), text(size: 6.2pt, fill: textc.lighten(28%))[#path])
+  rect((x, y), (rel: (w, 0.92)), radius: 2pt, fill: white, stroke: 0.6pt + rgb("#333333"))
+  content((x + w / 2, y + 0.60), text(size: 7.2pt, weight: "bold", fill: rgb("#1a1a1a"))[#name])
+  content((x + w / 2, y + 0.26), text(size: 6.2pt, fill: rgb("#555550"))[#path])
 }
 
 #align(center)[
@@ -41,7 +42,7 @@
       rgb("#f1efe8"), rgb("#b4b2a9"), rgb("#444441"))
     fnode(0.75, 9.85, 3.6, "pipeline.py", "inference/ · 121 行", white, rgb("#afa9ec"), rgb("#3c3489"))
     note(8.1, 10.42, "LPRMultiTaskPipeline：四阶段写死为顺序执行", rgb("#666662"))
-    note(8.1, 10.04, "原实现无法切分 —— 本课题的解耦对象", rgb("#993c1d"))
+    note(8.1, 10.04, "顺序与执行位置写死 · 解耦对象", rgb("#555550"))
 
     band(0.4, 6.6, 14.0, 2.8, "算子层　深度学习推理算子（前处理 → ONNX 前向 → 后处理）",
       rgb("#f1efe8"), rgb("#b4b2a9"), rgb("#444441"))
@@ -50,8 +51,6 @@
     fnode(7.55, 7.75, 2.5, "vertex.py", "inference/ · 83 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
     fnode(0.75, 6.72, 3.5, "recognition.py", "inference/ · 233 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
     fnode(4.45, 6.72, 3.4, "classification.py", "inference/ · 49 行", white, rgb("#5dc9a0"), rgb("#0f5132"))
-    note(12.3, 8.25, "Stage 1/3/4 · AI 推理算子", rgb("#666662"))
-    note(12.1, 6.95, "三者均为 AI 推理算子", rgb("#666662"))
 
     band(0.4, 4.7, 14.0, 1.7, "数据层　几何变换与数据结构（Stage 2 对齐在此，非 AI）",
       rgb("#f1efe8"), rgb("#b4b2a9"), rgb("#444441"))
@@ -76,7 +75,7 @@
       HyperLPR 原库 1697 行源码的模块分解（层 → 模块 → 文件 → 行数）。
     ])
     content((7.4, 1.45), text(size: 8pt, fill: rgb("#444441"))[
-      四阶段写死在 LPRMultiTaskPipeline.run() 内，无可插拔接缝 —— 这是后续解耦的对象。
+      四阶段顺序与执行位置写死在 LPRMultiTaskPipeline.run() 内 —— 算子可独立调用，无可重分配的执行位置。
     ])
   })
 ]
