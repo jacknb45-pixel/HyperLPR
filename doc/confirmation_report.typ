@@ -85,7 +85,7 @@
 #pagebreak()
 
 // ============================== 摘要 ==============================
-= 摘要
+#align(center)[#heading(numbering: none)[摘要]]
 
 本课题面向移动云计算（Mobile Cloud Computing, MCC）环境，以开源中文车牌识别框架 HyperLPR 为载体，研究*计算划分*（Computation Partitioning）问题：把应用的各计算模块在移动终端与云端之间分配，并通过系统实验刻画"划分方式—网络条件—端到端性能"之间的关系。本报告完成开题阶段的两项工作：其一，对 HyperLPR 源码做模块级剖析，给出模块到文件的分配结构与运行时调用结构，并定位出四阶段推理流水线（目标定位 → 几何对齐 → 字符识别 → 属性分类）中可插拔的接缝——原库把四阶段写死在单一方法内，不改造便无法表达"检测在端侧、识别在云端"这类分工；四算子的解耦实现按里程碑列入中期；其二，对流水线做数据流建模，量化各节点的中间张量体积——确认对齐之后载荷由原图的 385 KB\~2 MB 降至 5.81\~12.73 KB（对 2 MB 级原图削减 160 倍），据此提出"对齐之后"这一候选切分点。划分方案的设计与多划分方式的性能对比，将按课程里程碑在中期报告（2026-11-29）中给出。
 
@@ -112,6 +112,7 @@
 按课程要求，本开题报告展示课题的研究背景及意义（第 1 章）、选定的应用程序（第 2 章）及其源码模块结构（第 3、4 章）。各计算模块在端云之间如何划分、不同划分方式的性能对比，属于中期报告的交付内容；本报告仅在数据流分析中给出切分点的候选位置（第 4 章），并在后续工作计划中列出推进路径（第 5 章）。
 
 // ============================== 2 应用选型 ==============================
+#pagebreak()
 = 选定的应用程序：HyperLPR
 
 *定位*：开源高性能中文车牌识别框架，支持单行蓝牌／黄牌、新能源绿牌、教练车、双层黄牌等主流车牌类型。
@@ -133,7 +134,7 @@
 == 模块到文件的分配结构
 
 #figure(
-  image("module_map.png", width: 97%),
+  image("module_map.png", width: 92%),
   caption: [HyperLPR 源码模块结构（核心源文件 1535 行的分层分解：层 → 模块 → 文件 → 行数；全库 1697 行）],
 )
 
@@ -232,13 +233,4 @@
 
 本报告完成了计算划分课题的开题工作：选定 HyperLPR 作为研究对象，完成其源码的模块级剖析——给出模块到文件的分配结构与运行时调用结构，并定位出写死在单一方法内的四阶段流水线的可插拔接缝（算子边界与调用关系已界定，解耦实现按里程碑列入中期）；在此基础上对流水线做数据流建模，量化各节点的中间张量体积，确认对齐之后载荷由原图的 385 KB\~2 MB 降至 5.81\~12.73 KB（对 2 MB 级原图削减 160 倍），故*对齐之后*是最有潜力的候选切分点——该位置由算法结构决定，不随硬件变化。此外，端侧基线的初步真机测量（1080p 图像单次识别 150.52 ms、进程内存 84.2 MB，四算子逐阶段直接计时）已提前完成，将作为中期划分实验的对照基准。按课程里程碑，各划分方式的设计与性能对比将在 11 月 29 日中期报告中给出，动态自适应划分与系统演示在终期完成。
 
-// ============================== 7 参考 ==============================
-= 参考文献
 
-1. Cuervo E., Balasubramanian A., Cho D., et al. MAUI: Making Smartphones Last Longer with Code Offload. *Proc. MobiSys*, 2010.
-2. Chun B., Ihm S., Maniatis P., et al. CloneCloud: Elastic Execution between Mobile Device and Cloud. *Proc. EuroSys*, 2011.
-3. Khan A. U. R., Othman M., Madani S. A., et al. A Survey of Mobile Cloud Computing Application Models. *IEEE Communications Surveys & Tutorials*, 2014.
-4. HyperLPR: 开源高性能中文车牌识别框架. GitHub: szad670401/HyperLPR（本团队工作仓库: ya2yo/HyperLPR）.
-5. Redmon J., Divvala S., Girshick R., et al. You Only Look Once: Unified, Real-Time Object Detection. *Proc. CVPR*, 2016.
-6. Shi B., Bai X., Yao C. An End-to-End Trainable Neural Network for Image-based Sequence Recognition and Its Application to Scene Text. *IEEE TPAMI*, 2017.
-7. Flinn J. Balancing Performance, Energy, and Quality in Pervasive Computing. *Proc. ICDCS*, 2002.
